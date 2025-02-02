@@ -1,0 +1,115 @@
+basePath: /v2
+definitions:
+  fiber.Map:
+    additionalProperties: true
+    type: object
+  gorm.DeletedAt:
+    properties:
+      time:
+        type: string
+      valid:
+        description: Valid is true if Time is not NULL
+        type: boolean
+    type: object
+  model.Status:
+    enum:
+    - Pending
+    - Started
+    - Running
+    - Failure
+    - Success
+    type: string
+    x-enum-varnames:
+    - Pending
+    - Started
+    - Running
+    - Failure
+    - Success
+  model.Task:
+    description: task table
+    properties:
+      createdAt:
+        type: string
+      creator:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      status:
+        $ref: '#/definitions/model.Status'
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+host: petstore.swagger.io
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a sample server Petstore server.
+  license:
+    name: BSD 3-Clause License
+    url: https://opensource.org/license/bsd-3-clause
+  termsOfService: http://swagger.io/terms/
+  title: aha_webserver API
+  version: "1.0"
+paths:
+  /task:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 任务信息
+        in: body
+        name: task
+        required: true
+        schema:
+          $ref: '#/definitions/model.Task'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Task'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/fiber.Map'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/fiber.Map'
+      summary: 创建新任务
+      tags:
+      - 任务管理
+  /task/{id}:
+    get:
+      parameters:
+      - description: 任务ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Task'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/fiber.Map'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/fiber.Map'
+      summary: 获取任务详情
+      tags:
+      - 任务管理
+swagger: "2.0"
