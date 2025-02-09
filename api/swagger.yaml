@@ -11,14 +11,73 @@ definitions:
         description: Valid is true if Time is not NULL
         type: boolean
     type: object
+  model.Job:
+    properties:
+      config:
+        type: string
+      createdAt:
+        type: string
+      creator:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      errorCode:
+        type: integer
+      id:
+        type: integer
+      label:
+        items:
+          type: string
+        type: array
+      result:
+        $ref: '#/definitions/model.JobResult'
+      status:
+        $ref: '#/definitions/model.Status'
+      tasks:
+        items:
+          $ref: '#/definitions/model.Task'
+        type: array
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  model.JobResult:
+    properties:
+      artifacts:
+        description: 输出产物路径
+        items:
+          type: string
+        type: array
+      createdAt:
+        type: string
+      deletedAt:
+        $ref: '#/definitions/gorm.DeletedAt'
+      id:
+        type: integer
+      jobID:
+        description: Foreign key for Job
+        type: integer
+      logs:
+        description: 执行日志
+        type: string
+      metrics:
+        description: 结构化指标数据
+        type: string
+      output:
+        description: 主要输出结果
+        type: string
+      updatedAt:
+        type: string
+    type: object
   model.Status:
     enum:
-    - Pending
-    - Started
-    - Running
-    - Failure
-    - Success
-    type: string
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    type: integer
     x-enum-varnames:
     - Pending
     - Started
@@ -28,14 +87,25 @@ definitions:
   model.Task:
     description: task table
     properties:
+      config:
+        type: string
       createdAt:
         type: string
       creator:
         type: string
       deletedAt:
         $ref: '#/definitions/gorm.DeletedAt'
+      errorCode:
+        type: integer
       id:
         type: integer
+      jobID:
+        type: integer
+      label:
+        description: 修改为字符串切片并使用JSON类型存储
+        items:
+          type: string
+        type: array
       status:
         $ref: '#/definitions/model.Status'
       title:
@@ -57,6 +127,61 @@ info:
   title: aha_webserver API
   version: "1.0"
 paths:
+  /job:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 信息
+        in: body
+        name: job
+        required: true
+        schema:
+          $ref: '#/definitions/model.Job'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/model.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/fiber.Map'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/fiber.Map'
+      summary: 创建新Job
+      tags:
+      - Job管理
+  /job/{id}:
+    get:
+      parameters:
+      - description: JobID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Job'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/fiber.Map'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/fiber.Map'
+      summary: 获取任务详情
+      tags:
+      - 任务管理
   /task:
     post:
       consumes:

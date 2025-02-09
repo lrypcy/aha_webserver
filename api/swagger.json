@@ -18,6 +18,91 @@
     "host": "petstore.swagger.io",
     "basePath": "/v2",
     "paths": {
+        "/job": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Job管理"
+                ],
+                "summary": "创建新Job",
+                "parameters": [
+                    {
+                        "description": "信息",
+                        "name": "job",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/model.Job"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/model.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/fiber.Map"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/fiber.Map"
+                        }
+                    }
+                }
+            }
+        },
+        "/job/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "任务管理"
+                ],
+                "summary": "获取任务详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "JobID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/model.Job"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/fiber.Map"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/fiber.Map"
+                        }
+                    }
+                }
+            }
+        },
         "/task": {
             "post": {
                 "consumes": [
@@ -121,14 +206,101 @@
                 }
             }
         },
+        "model.Job": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "creator": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "errorCode": {
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "result": {
+                    "$ref": "#/definitions/model.JobResult"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.Status"
+                },
+                "tasks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/model.Task"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "model.JobResult": {
+            "type": "object",
+            "properties": {
+                "artifacts": {
+                    "description": "输出产物路径",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "deletedAt": {
+                    "$ref": "#/definitions/gorm.DeletedAt"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "jobID": {
+                    "description": "Foreign key for Job",
+                    "type": "integer"
+                },
+                "logs": {
+                    "description": "执行日志",
+                    "type": "string"
+                },
+                "metrics": {
+                    "description": "结构化指标数据",
+                    "type": "string"
+                },
+                "output": {
+                    "description": "主要输出结果",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
         "model.Status": {
-            "type": "string",
+            "type": "integer",
             "enum": [
-                "Pending",
-                "Started",
-                "Running",
-                "Failure",
-                "Success"
+                0,
+                1,
+                2,
+                3,
+                4
             ],
             "x-enum-varnames": [
                 "Pending",
@@ -142,6 +314,9 @@
             "description": "task table",
             "type": "object",
             "properties": {
+                "config": {
+                    "type": "string"
+                },
                 "createdAt": {
                     "type": "string"
                 },
@@ -151,8 +326,21 @@
                 "deletedAt": {
                     "$ref": "#/definitions/gorm.DeletedAt"
                 },
+                "errorCode": {
+                    "type": "integer"
+                },
                 "id": {
                     "type": "integer"
+                },
+                "jobID": {
+                    "type": "integer"
+                },
+                "label": {
+                    "description": "修改为字符串切片并使用JSON类型存储",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "status": {
                     "$ref": "#/definitions/model.Status"
