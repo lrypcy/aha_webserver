@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lrypcy/aha_webserver/api"
 	"github.com/lrypcy/aha_webserver/internal/database"
@@ -24,8 +26,13 @@ import (
 // @host petstore.swagger.io
 // @BasePath /v2
 func main() {
-	viper.SetConfigFile("nothing.yaml")
-	viper.SetDefault("database_type", "sqlite")
+	viper.SetConfigFile("configs/config.yml")
+	viper.SetConfigType("yaml")
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Println(err)
+		return
+	}
+	viper.SetDefault("database.type", "sqlite")
 	viper.SetDefault("database.dbname", "sqlite.db")
 	database.InitDB()
 	app := fiber.New()

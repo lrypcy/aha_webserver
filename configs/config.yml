@@ -1,0 +1,7 @@
+database:
+  type: "postgresql"
+  host: "localhost" 
+  username: "postgres" 
+  password: "mysecretpassword"
+  dbname: "postgres"
+  port: "9920"

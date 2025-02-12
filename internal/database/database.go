@@ -65,7 +65,7 @@ func initSqlite() error {
 
 func InitDB() {
 	var err error
-	switch database_type := viper.GetString("database_type"); database_type {
+	switch database_type := viper.GetString("database.type"); database_type {
 	case kMysql:
 		err = initMysql()
 	case kPostGreSql:
