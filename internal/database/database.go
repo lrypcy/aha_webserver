@@ -21,36 +21,77 @@ const (
 var db *gorm.DB
 
 func initMysql() error {
+	dbname := viper.GetString("database.dbname")
+	// First connect without dbname to create database if needed
+	createDSN := fmt.Sprintf("%s:%s@tcp(%s:%d)/?charset=utf8mb4&parseTime=True&loc=Local",
+		viper.GetString("database.username"),
+		viper.GetString("database.password"),
+		viper.GetString("database.host"),
+		viper.GetInt("database.port"),
+	)
+	
+	tempDB, err := gorm.Open(mysql.Open(createDSN), &gorm.Config{})
+	if err == nil {
+		tempDB.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS `%s`", dbname))
+	}
+
+	// Then connect with dbname
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=utf8mb4&parseTime=True&loc=Local",
 		viper.GetString("database.username"),
 		viper.GetString("database.password"),
 		viper.GetString("database.host"),
 		viper.GetInt("database.port"),
-		viper.GetString("database.dbname"),
+		dbname,
 	)
-	fmt.Println(dsn)
-	var err error
 	db, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
-	// TODO
-	// sqlDB, err := db.DB()
-	// sqlDB.SetMaxOpenConns(10) // 设置最大打开的连接数
-	// sqlDB.SetMaxIdleConns(5)  // 设置连接池中的最大闲置连接数
-	// sqlDB.SetConnMaxLifetime(time.Hour) // 设置连接的最大可复用时间
+	if err != nil {
+		return err
+	}
+	
+	// 添加自动迁移
+	err = db.AutoMigrate(
+		&model.Job{},
+		&model.Task{},
+	)
 	return err
 }
 
 func initPostGreSql() error {
+	dbname := viper.GetString("database.dbname")
+	// First connect to default database to create target db
+	createDSN := fmt.Sprintf("host=%s user=%s password=%s port=%d sslmode=disable TimeZone=Asia/Shanghai",
+		viper.GetString("database.host"),
+		viper.GetString("database.username"),
+		viper.GetString("database.password"),
+		viper.GetInt("database.port"),
+	)
+	
+	tempDB, err := gorm.Open(postgres.Open(createDSN), &gorm.Config{})
+	if err == nil {
+		tempDB.Exec(fmt.Sprintf("CREATE DATABASE %s", dbname))
+	}
+
+	// Then connect to the created database
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable TimeZone=Asia/Shanghai",
 		viper.GetString("database.host"),
 		viper.GetString("database.username"),
 		viper.GetString("database.password"),
-		viper.GetString("database.dbname"),
+		dbname,
 		viper.GetInt("database.port"),
 	)
-	fmt.Println(dsn)
-	var err error
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
-	return err
+	if err != nil {
+		return err
+	}
+	
+	// 调整迁移顺序，先创建 Job 表再创建 Task 表
+	if err := db.AutoMigrate(
+		&model.Job{},  // 必须放在 Task 前面
+		&model.Task{},
+	); err != nil {
+		return fmt.Errorf("failed to auto migrate: %w", err)
+	}
+	return nil
 }
 
 func initSqlite() error {
@@ -59,7 +100,10 @@ func initSqlite() error {
 	fmt.Println(dsn)
 	var err error
 	db, err = gorm.Open(sqlite.Open(dsn), &gorm.Config{})
-	db.AutoMigrate(&model.Task{})
+	db.AutoMigrate(
+		&model.Job{},   // 移到 Task 前面
+		&model.Task{},
+	)
 	return err
 }
 

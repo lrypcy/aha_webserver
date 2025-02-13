@@ -33,7 +33,7 @@ func AddJob(c *fiber.Ctx) error {
 	result := database.DB().Create(&job)
 	if result.Error != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create task",
+			"error": "Failed to create job",
 		})
 	}
 
