@@ -163,7 +163,7 @@ paths:
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
@@ -171,6 +171,10 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/model.Job'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/fiber.Map'
         "404":
           description: Not Found
           schema:
@@ -181,7 +185,7 @@ paths:
             $ref: '#/definitions/fiber.Map'
       summary: 获取任务详情
       tags:
-      - 任务管理
+      - Job管理
   /task:
     post:
       consumes:

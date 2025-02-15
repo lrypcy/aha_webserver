@@ -17,8 +17,8 @@ type Job struct {
 	Creator    string
 	Status     Status
 	ErrorCode  ErrorCode
-	Config     Config    `gorm:"type:json"`
-	Label      []string  `gorm:"type:json"`
+	Config     Config    `gorm:"type:jsonb"`
+	Label      []string  `gorm:"type:jsonb"`
 	Result     JobResult `gorm:"foreignKey:JobID"`
-	Tasks []Task `gorm:"foreignKey:JobID"`
+	Tasks      []Task    `gorm:"foreignKey:JobID"`
 }

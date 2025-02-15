@@ -75,12 +75,12 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "任务管理"
+                    "Job管理"
                 ],
                 "summary": "获取任务详情",
                 "parameters": [
                     {
-                        "type": "string",
+                        "type": "integer",
                         "description": "JobID",
                         "name": "id",
                         "in": "path",
@@ -92,6 +92,12 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/model.Job"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/fiber.Map"
                         }
                     },
                     "404": {

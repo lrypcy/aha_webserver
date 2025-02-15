@@ -3,7 +3,7 @@ SWAG_API_DIR := api
 swag_clean:
 	rm ${SWAG_API_DIR}/*
 
-swag: swag_clean
+swag:
 	swag init --output ${SWAG_API_DIR} --parseInternal --parseDependency
 
 tidy:

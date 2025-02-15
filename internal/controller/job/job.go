@@ -1,11 +1,13 @@
 package job
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/lrypcy/aha_webserver/internal/database"
 	"github.com/lrypcy/aha_webserver/internal/model"
+	"gorm.io/gorm"
 )
 
 // AddJob 创建新任务
@@ -43,27 +45,35 @@ func AddJob(c *fiber.Ctx) error {
 
 // GetJob 获取任务详情
 // @Summary 获取任务详情
-// @Tags 任务管理
+// @Tags Job管理
 // @Produce json
-// @Param id path string true "JobID"
+// @Param id path int true "JobID"
 // @Success 200 {object} model.Job
+// @Failure 400 {object} fiber.Map
 // @Failure 404 {object} fiber.Map
 // @Failure 500 {object} fiber.Map
 // @Router /job/{id} [get]
 func GetJob(c *fiber.Ctx) error {
-	id := c.Params("id")
-	var job model.Job
-
-	// 根据ID查询记录
-	result := database.DB().Where("id = ?", id).First(&job)
-	if result.RowsAffected == 0 {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Job not found",
+	// 将参数转换为整数
+	id, err := c.ParamsInt("id")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid job ID format, must be integer",
 		})
 	}
+
+	var job model.Job
+
+	// 根据整数ID查询
+	result := database.DB().Where("id = ?", id).First(&job)
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": fmt.Sprintf("Job %d not found", id),
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Database error",
+			"error": "Database error: " + result.Error.Error(),
 		})
 	}
 

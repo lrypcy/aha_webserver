@@ -3,5 +3,5 @@ database:
   host: "localhost" 
   username: "postgres" 
   password: "mysecretpassword"
-  dbname: "jobs"
+  dbname: "test2"
   port: "5432"
