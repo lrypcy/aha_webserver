@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	_ "github.com/lrypcy/aha_webserver/api"
 	"github.com/lrypcy/aha_webserver/internal/database"
+	"github.com/lrypcy/aha_webserver/internal/middleware/jwt"
 	"github.com/lrypcy/aha_webserver/internal/router"
 	"github.com/spf13/viper"
 	fiberSwagger "github.com/swaggo/fiber-swagger"
@@ -35,6 +36,11 @@ func main() {
 	viper.SetDefault("database.type", "sqlite")
 	viper.SetDefault("database.dbname", "sqlite.db")
 	database.InitDB()
+	jwt.Init(
+		viper.GetString("jwt.secret"),
+		viper.GetDuration("jwt.expiration"),
+	)
+
 	app := fiber.New()
 	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 	router.InitRouting(app)

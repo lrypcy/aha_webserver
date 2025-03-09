@@ -52,6 +52,7 @@ func initMysql() error {
 	err = db.AutoMigrate(
 		&model.Job{},
 		&model.Task{},
+		&model.User{},
 	)
 	return err
 }
@@ -88,6 +89,7 @@ func initPostGreSql() error {
 	if err := db.AutoMigrate(
 		&model.Job{},  // 必须放在 Task 前面
 		&model.Task{},
+		&model.User{},
 	); err != nil {
 		return fmt.Errorf("failed to auto migrate: %w", err)
 	}
@@ -103,6 +105,7 @@ func initSqlite() error {
 	db.AutoMigrate(
 		&model.Job{},   // 移到 Task 前面
 		&model.Task{},
+		&model.User{},
 	)
 	return err
 }
