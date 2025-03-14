@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/lrypcy/aha_webserver/internal/database"
+	"github.com/lrypcy/aha_webserver/internal/middleware/jwt"
 	"github.com/lrypcy/aha_webserver/internal/model"
 	"gorm.io/gorm"
 )
@@ -21,7 +22,7 @@ import (
 // @Failure 500 {object} fiber.Map
 // @Router /job [post]
 func AddJob(c *fiber.Ctx) error {
-	job := model.Job{}
+		job := model.Job{}
 	
 	// 解析请求体
 	if err := c.BodyParser(&job); err != nil {
@@ -82,7 +83,8 @@ func GetJob(c *fiber.Ctx) error {
 
 func InitRouting(app *fiber.App) {
 	fmt.Println("add job routing")
-	app.Post("/job", AddJob)
+	jobGroup := app.Group("/job", jwt.Middleware())
+	jobGroup.Post("/job", AddJob)
 	app.Get("/job/:id", GetJob)
 	fmt.Println("end job routing")
 }
