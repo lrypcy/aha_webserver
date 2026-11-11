@@ -1,0 +1,65 @@
+# aha_webserver 编排：app + PostgreSQL 16
+# 用法：
+#   cp .env.example .env      # 按需修改，尤其设置 AHA_JWT_SECRET
+#   docker compose up -d --build
+#   docker compose down
+# 说明：compose 自动读取根目录 .env 做变量替换；未设置时使用 ${VAR:-默认值} 中的默认值。
+#       生产环境务必通过 .env 提供强随机 AHA_JWT_SECRET（openssl rand -hex 32）。
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aha_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${AHA_DB_USER:-aha}
+      POSTGRES_PASSWORD: ${AHA_DB_PASSWORD:-aha_dev_password}
+      # 数据库层不会自动 CREATE DATABASE，这里预先建好库，app 的 AHA_DB_NAME 指向同一个库
+      POSTGRES_DB: ${AHA_DB_NAME:-aha}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${AHA_DB_USER:-aha} -d ${AHA_DB_NAME:-aha}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # 数据库端口不对宿主机暴露，仅 app 经内部网络访问
+
+  app:
+    build:
+      context: .
+      dockerfile: build/package/Dockerfile
+    image: aha_webserver:latest
+    container_name: aha_app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      AHA_SERVER_PORT: "8080"
+      AHA_SERVER_ENV: ${AHA_SERVER_ENV:-production}
+      AHA_DB_TYPE: postgresql
+      AHA_DB_HOST: postgres
+      AHA_DB_PORT: "5432"
+      AHA_DB_USER: ${AHA_DB_USER:-aha}
+      AHA_DB_PASSWORD: ${AHA_DB_PASSWORD:-aha_dev_password}
+      # 与上面 POSTGRES_DB 取同一变量，确保连到已预建的库
+      AHA_DB_NAME: ${AHA_DB_NAME:-aha}
+      # 仅本地演示默认值；生产请在 .env 中替换为 openssl rand -hex 32 的结果
+      AHA_JWT_SECRET: ${AHA_JWT_SECRET:-dev-only-change-me}
+      AHA_JWT_EXPIRATION: ${AHA_JWT_EXPIRATION:-24h}
+      AHA_LOG_LEVEL: ${AHA_LOG_LEVEL:-info}
+      AHA_CORS_ORIGINS: ${AHA_CORS_ORIGINS:-http://localhost:8080}
+      AHA_RATE_LIMIT_MAX: ${AHA_RATE_LIMIT_MAX:-100}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  pgdata:

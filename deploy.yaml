@@ -1,0 +1,75 @@
+# aha_webserver 的 easy_deploy 部署清单（唯一事实源）
+# 文档：docs/deployment.md ｜ 规则：AGENTS.md「部署」章节
+# 用法（在仓库根目录执行）：
+#   easy_deploy validate --json
+#   easy_deploy plan --target k8s --json
+#   easy_deploy up --target local --yes --json
+apiVersion: easydeploy/v1
+kind: Service
+metadata:
+  name: aha-webserver
+  version: "1.0.0"
+  labels:
+    app: aha
+    tier: backend
+spec:
+  dir: .
+  image: aha_webserver:latest
+  build:
+    # 裸机/systemd/ssh 走 command；docker/compose 走 dockerfile；k8s 用现成镜像
+    type: dockerfile
+    command: go build -o bin/aha_webserver .
+    context: .
+    dockerfile: build/package/Dockerfile
+    artifact: bin/aha_webserver
+    # 构建期换源：本机 Docker Hub 直连不通（auth.docker.io Bad Gateway），
+    # 默认走国内可达镜像源；其他网络可用 EDP_* 环境变量覆盖回官方值。
+    # 详见 docs/deployment.md「镜像构建与网络」。
+    args:
+      GO_BASE_IMAGE: ${EDP_GO_BASE_IMAGE:-docker.m.daocloud.io/library/golang:1.23-alpine}
+      RUN_BASE_IMAGE: ${EDP_RUN_BASE_IMAGE:-docker.m.daocloud.io/library/alpine:3.20}
+      GOPROXY: ${EDP_GOPROXY:-https://goproxy.cn,direct}
+  runtime:
+    command: ./bin/aha_webserver
+    port: 8080
+    hostPort: 8080
+    env:
+      AHA_SERVER_PORT: "8080"
+      AHA_SERVER_ENV: dev
+      AHA_DB_TYPE: sqlite
+      AHA_DB_NAME: aha.db
+      AHA_LOG_LEVEL: info
+      AHA_CORS_ORIGINS: "http://localhost:3000"
+      # 生产必须注入强随机值；本地 dev 模式会生成临时密钥，留空即可
+      AHA_JWT_SECRET: ${AHA_JWT_SECRET:-}
+    health:
+      path: /health
+      timeout: 60s
+    replicas: 1
+    resources:
+      cpu: 200m
+      memory: 256Mi
+profiles:
+  local:
+    env:
+      AHA_SERVER_ENV: dev
+      AHA_DB_TYPE: sqlite
+  systemd:
+    unitDir: /etc/systemd/system
+    env:
+      AHA_SERVER_ENV: dev
+  ssh:
+    host: deploy@example.internal
+    remoteDir: /opt/aha
+  docker:
+    runtime: docker
+    env:
+      AHA_SERVER_ENV: dev
+  compose:
+    replicas: 1
+    env:
+      AHA_DB_TYPE: sqlite
+  k8s:
+    namespace: aha
+    serviceType: NodePort
+    replicas: 2

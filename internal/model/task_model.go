@@ -1,17 +1,15 @@
 package model
 
-import "gorm.io/gorm"
-
-
-// Task task model
-// @Description task table
+// Task 是 Job 下的最小执行单元。
 type Task struct {
-	gorm.Model // embeded gorm model
-	JobID uint `gorm:"index"`
-	Title string
-	Creator string
-	Status Status
-	ErrorCode ErrorCode
-	Config Config `gorm:"type:json"`
-	Label []string `gorm:"type:json;default:'[]'::jsonb"`  // 修改为字符串切片并使用JSON类型存储
+	BaseModel
+	JobID     uint           `gorm:"index;not null" json:"job_id"`
+	Title     string         `gorm:"size:255;not null" json:"title"`
+	Creator   string         `gorm:"size:64;index" json:"creator"`
+	Status    Status         `gorm:"not null;default:0;index" json:"status"`
+	ErrorCode ErrorCode      `gorm:"not null;default:0" json:"error_code"`
+	Config    map[string]any `gorm:"serializer:json" json:"config"`
+	Labels    []string       `gorm:"serializer:json" json:"labels"`
 }
+
+func (Task) TableName() string { return "tasks" }

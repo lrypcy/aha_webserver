@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aha-webserver
+  namespace: aha
+  labels:
+    easydeploy.io/managed: "true"
+    easydeploy.io/service: aha-webserver
+    easydeploy.io/target: k8s
+    easydeploy.io/stack: aha-webserver
+    app: aha
+    tier: backend
+spec:
+  type: NodePort
+  selector:
+    easydeploy.io/service: aha-webserver
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

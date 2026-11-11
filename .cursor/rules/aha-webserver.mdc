@@ -1,0 +1,19 @@
+---
+description: "aha_webserver 项目 AI 协作规范入口，指向根目录 AGENTS.md"
+globs: "**/*"
+alwaysApply: true
+---
+
+# aha_webserver 规则入口
+
+所有规范以项目根目录 `AGENTS.md` 为准，请先完整阅读：
+
+- 项目概览、技术栈与版本、目录地图
+- 构建 / 运行 / 测试 / 文档生成命令
+- Go 编码规范、API 契约、数据库与迁移规范、安全红线
+- 部署契约（`deploy.yaml` + easy_deploy 六目标）、端口 / 探针 / 密钥同步规则
+- 新增接口 / 修改模型的标准步骤、提交前检查清单、常见坑
+
+细则在 `.agents/rules/`，可执行技能在 `.agents/skills/`，工作流在 `.agents/workflows/`，背景知识在 `.agents/context/`，索引见 `.agents/README.md`。
+
+本文件不复制规则正文，规范只在 `AGENTS.md` 一处维护。

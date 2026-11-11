@@ -1,7 +1,35 @@
+# 本地开发默认配置（不含任何机密）。
+# 所有字段都可用 AHA_* 环境变量覆盖，详见 .env.example / docs/configuration.md。
+server:
+  port: 8080
+  env: dev
+  read_timeout: 10s
+  write_timeout: 10s
+  shutdown_timeout: 10s
+  body_limit: 1048576
+
 database:
-  type: "postgresql"
-  host: "localhost" 
-  username: "postgres" 
-  password: "mysecretpassword"
-  dbname: "test2"
-  port: "5432"
+  type: sqlite          # sqlite | mysql | postgresql
+  host: localhost
+  port: 5432
+  username: postgres
+  password: ""          # 生产环境必须经 AHA_DB_PASSWORD 注入
+  dbname: aha.db        # sqlite 时为文件路径
+  max_open_conns: 20
+  max_idle_conns: 5
+  conn_max_lifetime: 30m
+
+jwt:
+  secret: ""            # 生产环境必须经 AHA_JWT_SECRET 注入（>=32 字符）
+  expiration: 24h
+  issuer: aha_webserver
+
+log:
+  level: info
+
+cors:
+  origins: "*"          # 生产环境必须改成显式白名单
+
+rate_limit:
+  max: 100
+  expiration: 1m

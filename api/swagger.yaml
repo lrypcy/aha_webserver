@@ -1,75 +1,72 @@
-basePath: /v2
+basePath: /api/v1
 definitions:
-  fiber.Map:
-    additionalProperties: true
-    type: object
-  gorm.DeletedAt:
-    properties:
-      time:
-        type: string
-      valid:
-        description: Valid is true if Time is not NULL
-        type: boolean
-    type: object
-  model.Job:
+  dto.CreateJobRequest:
     properties:
       config:
-        type: string
-      createdAt:
-        type: string
+        additionalProperties: {}
+        type: object
       creator:
         type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      errorCode:
-        type: integer
-      id:
-        type: integer
-      label:
+      labels:
         items:
           type: string
-        type: array
-      result:
-        $ref: '#/definitions/model.JobResult'
-      status:
-        $ref: '#/definitions/model.Status'
-      tasks:
-        items:
-          $ref: '#/definitions/model.Task'
         type: array
       title:
         type: string
-      updatedAt:
-        type: string
     type: object
-  model.JobResult:
+  dto.CreateTaskRequest:
     properties:
-      artifacts:
-        description: 输出产物路径
+      config:
+        additionalProperties: {}
+        type: object
+      creator:
+        type: string
+      job_id:
+        type: integer
+      labels:
         items:
           type: string
         type: array
-      createdAt:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      id:
-        type: integer
-      jobID:
-        description: Foreign key for Job
-        type: integer
-      logs:
-        description: 执行日志
-        type: string
-      metrics:
-        description: 结构化指标数据
-        type: string
-      output:
-        description: 主要输出结果
-        type: string
-      updatedAt:
+      title:
         type: string
     type: object
+  dto.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  dto.UpdateTaskStatusRequest:
+    properties:
+      error_code:
+        $ref: '#/definitions/model.ErrorCode'
+      status:
+        $ref: '#/definitions/model.Status'
+    type: object
+  model.ErrorCode:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    - 4
+    type: integer
+    x-enum-varnames:
+    - ErrorNone
+    - ErrorInvalidInput
+    - ErrorDependencyFailed
+    - ErrorTimeout
+    - ErrorInternal
   model.Status:
     enum:
     - 0
@@ -79,87 +76,92 @@ definitions:
     - 4
     type: integer
     x-enum-varnames:
-    - Pending
-    - Started
-    - Running
-    - Failure
-    - Success
-  model.Task:
-    description: task table
+    - StatusPending
+    - StatusStarted
+    - StatusRunning
+    - StatusFailure
+    - StatusSuccess
+  response.Body:
     properties:
-      config:
-        type: string
-      createdAt:
-        type: string
-      creator:
-        type: string
-      deletedAt:
-        $ref: '#/definitions/gorm.DeletedAt'
-      errorCode:
+      code:
         type: integer
-      id:
-        type: integer
-      jobID:
-        type: integer
-      label:
-        description: 修改为字符串切片并使用JSON类型存储
-        items:
-          type: string
-        type: array
-      status:
-        $ref: '#/definitions/model.Status'
-      title:
+      data: {}
+      message:
         type: string
-      updatedAt:
+      request_id:
         type: string
     type: object
-host: petstore.swagger.io
+host: localhost:8080
 info:
   contact:
-    email: support@swagger.io
-    name: API Support
-    url: http://www.swagger.io/support
-  description: This is a sample server Petstore server.
+    name: aha_webserver maintainers
+  description: Job / Task 任务管理 HTTP 服务，提供注册登录、任务创建、分页查询与状态流转。
   license:
     name: BSD 3-Clause License
     url: https://opensource.org/license/bsd-3-clause
-  termsOfService: http://swagger.io/terms/
+  termsOfService: https://opensource.org/license/bsd-3-clause
   title: aha_webserver API
   version: "1.0"
 paths:
-  /job:
+  /jobs:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 按状态过滤
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 分页列出 Job
+      tags:
+      - jobs
     post:
       consumes:
       - application/json
       parameters:
-      - description: 信息
+      - description: Job 信息
         in: body
-        name: job
+        name: body
         required: true
         schema:
-          $ref: '#/definitions/model.Job'
+          $ref: '#/definitions/dto.CreateJobRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/model.Job'
+            $ref: '#/definitions/response.Body'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/fiber.Map'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/fiber.Map'
-      summary: 创建新Job
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 创建 Job
       tags:
-      - Job管理
-  /job/{id}:
-    get:
+      - jobs
+  /jobs/{id}:
+    delete:
       parameters:
-      - description: JobID
+      - description: Job ID
         in: path
         name: id
         required: true
@@ -170,75 +172,241 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.Job'
-        "400":
-          description: Bad Request
+            $ref: '#/definitions/response.Body'
+        "403":
+          description: Forbidden
           schema:
-            $ref: '#/definitions/fiber.Map'
+            $ref: '#/definitions/response.Body'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/fiber.Map'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/fiber.Map'
-      summary: 获取任务详情
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 删除 Job
       tags:
-      - Job管理
-  /task:
-    post:
-      consumes:
-      - application/json
-      parameters:
-      - description: 任务信息
-        in: body
-        name: task
-        required: true
-        schema:
-          $ref: '#/definitions/model.Task'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/model.Task'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/fiber.Map'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/fiber.Map'
-      summary: 创建新任务
-      tags:
-      - 任务管理
-  /task/{id}:
+      - jobs
     get:
       parameters:
-      - description: 任务ID
+      - description: Job ID
         in: path
         name: id
         required: true
-        type: string
+        type: integer
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/model.Task'
+            $ref: '#/definitions/response.Body'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/fiber.Map'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/fiber.Map'
-      summary: 获取任务详情
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 获取 Job 详情
       tags:
-      - 任务管理
+      - jobs
+  /login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 登录信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: 登录并获取令牌
+      tags:
+      - auth
+  /me:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 获取当前用户
+      tags:
+      - auth
+  /register:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 注册信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/response.Body'
+      summary: 注册新用户
+      tags:
+      - auth
+  /tasks:
+    get:
+      parameters:
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: 每页条数
+        in: query
+        name: page_size
+        type: integer
+      - description: 按 Job 过滤
+        in: query
+        name: job_id
+        type: integer
+      - description: 按状态过滤
+        in: query
+        name: status
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 分页列出 Task
+      tags:
+      - tasks
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Task 信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateTaskRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 创建 Task
+      tags:
+      - tasks
+  /tasks/{id}:
+    get:
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 获取 Task 详情
+      tags:
+      - tasks
+  /tasks/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 目标状态
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateTaskStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/response.Body'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Body'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Body'
+      security:
+      - BearerAuth: []
+      summary: 更新 Task 状态
+      tags:
+      - tasks
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
 swagger: "2.0"

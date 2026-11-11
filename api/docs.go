@@ -9,11 +9,9 @@ const docTemplate = `{
     "info": {
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
-        "termsOfService": "http://swagger.io/terms/",
+        "termsOfService": "https://opensource.org/license/bsd-3-clause",
         "contact": {
-            "name": "API Support",
-            "url": "http://www.swagger.io/support",
-            "email": "support@swagger.io"
+            "name": "aha_webserver maintainers"
         },
         "license": {
             "name": "BSD 3-Clause License",
@@ -24,64 +22,112 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/job": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Job管理"
-                ],
-                "summary": "创建新Job",
-                "parameters": [
-                    {
-                        "description": "信息",
-                        "name": "job",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/model.Job"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "$ref": "#/definitions/model.Job"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/fiber.Map"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal Server Error",
-                        "schema": {
-                            "$ref": "#/definitions/fiber.Map"
-                        }
-                    }
-                }
-            }
-        },
-        "/job/{id}": {
+        "/jobs": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Job管理"
+                    "jobs"
                 ],
-                "summary": "获取任务详情",
+                "summary": "分页列出 Job",
                 "parameters": [
                     {
                         "type": "integer",
-                        "description": "JobID",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页条数",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "按状态过滤",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "创建 Job",
+                "parameters": [
+                    {
+                        "description": "Job 信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "获取 Job 详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -91,31 +137,62 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Job"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/fiber.Map"
+                            "$ref": "#/definitions/response.Body"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/fiber.Map"
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "jobs"
+                ],
+                "summary": "删除 Job",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
-                            "$ref": "#/definitions/fiber.Map"
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
                         }
                     }
                 }
             }
         },
-        "/task": {
+        "/login": {
             "post": {
                 "consumes": [
                     "application/json"
@@ -124,17 +201,92 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "任务管理"
+                    "auth"
                 ],
-                "summary": "创建新任务",
+                "summary": "登录并获取令牌",
                 "parameters": [
                     {
-                        "description": "任务信息",
-                        "name": "task",
+                        "description": "登录信息",
+                        "name": "body",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/model.Task"
+                            "$ref": "#/definitions/dto.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/me": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "获取当前用户",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/register": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "注册新用户",
+                "parameters": [
+                    {
+                        "description": "注册信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RegisterRequest"
                         }
                     }
                 ],
@@ -142,37 +294,136 @@ const docTemplate = `{
                     "201": {
                         "description": "Created",
                         "schema": {
-                            "$ref": "#/definitions/model.Task"
+                            "$ref": "#/definitions/response.Body"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/fiber.Map"
+                            "$ref": "#/definitions/response.Body"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "409": {
+                        "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/fiber.Map"
+                            "$ref": "#/definitions/response.Body"
                         }
                     }
                 }
             }
         },
-        "/task/{id}": {
+        "/tasks": {
             "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "任务管理"
+                    "tasks"
                 ],
-                "summary": "获取任务详情",
+                "summary": "分页列出 Task",
                 "parameters": [
                     {
-                        "type": "string",
-                        "description": "任务ID",
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 20,
+                        "description": "每页条数",
+                        "name": "page_size",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "按 Job 过滤",
+                        "name": "job_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "按状态过滤",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tasks"
+                ],
+                "summary": "创建 Task",
+                "parameters": [
+                    {
+                        "description": "Task 信息",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateTaskRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/tasks/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tasks"
+                ],
+                "summary": "获取 Task 详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Task ID",
                         "name": "id",
                         "in": "path",
                         "required": true
@@ -182,19 +433,70 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/model.Task"
+                            "$ref": "#/definitions/response.Body"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/fiber.Map"
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    }
+                }
+            }
+        },
+        "/tasks/{id}/status": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "tasks"
+                ],
+                "summary": "更新 Task 状态",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Task ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "目标状态",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.UpdateTaskStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
                         }
                     },
-                    "500": {
-                        "description": "Internal Server Error",
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/fiber.Map"
+                            "$ref": "#/definitions/response.Body"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/response.Body"
                         }
                     }
                 }
@@ -202,108 +504,103 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "fiber.Map": {
-            "type": "object",
-            "additionalProperties": true
-        },
-        "gorm.DeletedAt": {
-            "type": "object",
-            "properties": {
-                "time": {
-                    "type": "string"
-                },
-                "valid": {
-                    "description": "Valid is true if Time is not NULL",
-                    "type": "boolean"
-                }
-            }
-        },
-        "model.Job": {
+        "dto.CreateJobRequest": {
             "type": "object",
             "properties": {
                 "config": {
-                    "type": "string"
-                },
-                "createdAt": {
-                    "type": "string"
+                    "type": "object",
+                    "additionalProperties": {}
                 },
                 "creator": {
                     "type": "string"
                 },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "errorCode": {
-                    "type": "integer"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "label": {
+                "labels": {
                     "type": "array",
                     "items": {
                         "type": "string"
-                    }
-                },
-                "result": {
-                    "$ref": "#/definitions/model.JobResult"
-                },
-                "status": {
-                    "$ref": "#/definitions/model.Status"
-                },
-                "tasks": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/model.Task"
                     }
                 },
                 "title": {
                     "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
                 }
             }
         },
-        "model.JobResult": {
+        "dto.CreateTaskRequest": {
             "type": "object",
             "properties": {
-                "artifacts": {
-                    "description": "输出产物路径",
+                "config": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "creator": {
+                    "type": "string"
+                },
+                "job_id": {
+                    "type": "integer"
+                },
+                "labels": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
-                "createdAt": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "id": {
-                    "type": "integer"
-                },
-                "jobID": {
-                    "description": "Foreign key for Job",
-                    "type": "integer"
-                },
-                "logs": {
-                    "description": "执行日志",
-                    "type": "string"
-                },
-                "metrics": {
-                    "description": "结构化指标数据",
-                    "type": "string"
-                },
-                "output": {
-                    "description": "主要输出结果",
-                    "type": "string"
-                },
-                "updatedAt": {
+                "title": {
                     "type": "string"
                 }
             }
+        },
+        "dto.LoginRequest": {
+            "type": "object",
+            "properties": {
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.RegisterRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.UpdateTaskStatusRequest": {
+            "type": "object",
+            "properties": {
+                "error_code": {
+                    "$ref": "#/definitions/model.ErrorCode"
+                },
+                "status": {
+                    "$ref": "#/definitions/model.Status"
+                }
+            }
+        },
+        "model.ErrorCode": {
+            "type": "integer",
+            "enum": [
+                0,
+                1,
+                2,
+                3,
+                4
+            ],
+            "x-enum-varnames": [
+                "ErrorNone",
+                "ErrorInvalidInput",
+                "ErrorDependencyFailed",
+                "ErrorTimeout",
+                "ErrorInternal"
+            ]
         },
         "model.Status": {
             "type": "integer",
@@ -315,55 +612,34 @@ const docTemplate = `{
                 4
             ],
             "x-enum-varnames": [
-                "Pending",
-                "Started",
-                "Running",
-                "Failure",
-                "Success"
+                "StatusPending",
+                "StatusStarted",
+                "StatusRunning",
+                "StatusFailure",
+                "StatusSuccess"
             ]
         },
-        "model.Task": {
-            "description": "task table",
+        "response.Body": {
             "type": "object",
             "properties": {
-                "config": {
-                    "type": "string"
-                },
-                "createdAt": {
-                    "type": "string"
-                },
-                "creator": {
-                    "type": "string"
-                },
-                "deletedAt": {
-                    "$ref": "#/definitions/gorm.DeletedAt"
-                },
-                "errorCode": {
+                "code": {
                     "type": "integer"
                 },
-                "id": {
-                    "type": "integer"
-                },
-                "jobID": {
-                    "type": "integer"
-                },
-                "label": {
-                    "description": "修改为字符串切片并使用JSON类型存储",
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "status": {
-                    "$ref": "#/definitions/model.Status"
-                },
-                "title": {
+                "data": {},
+                "message": {
                     "type": "string"
                 },
-                "updatedAt": {
+                "request_id": {
                     "type": "string"
                 }
             }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
         }
     }
 }`
@@ -371,11 +647,11 @@ const docTemplate = `{
 // SwaggerInfo holds exported Swagger Info so clients can modify it
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
-	Host:             "petstore.swagger.io",
-	BasePath:         "/v2",
+	Host:             "localhost:8080",
+	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "aha_webserver API",
-	Description:      "This is a sample server Petstore server.",
+	Description:      "Job / Task 任务管理 HTTP 服务，提供注册登录、任务创建、分页查询与状态流转。",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

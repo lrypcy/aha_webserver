@@ -1,120 +1,154 @@
+// Package auth 提供注册、登录与当前用户信息接口。
 package auth
 
 import (
-	"github.com/lrypcy/aha_webserver/internal/middleware/jwt"
+	"errors"
+	"log/slog"
+	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/lrypcy/aha_webserver/internal/database"
+	"github.com/lrypcy/aha_webserver/internal/dto"
+	authmw "github.com/lrypcy/aha_webserver/internal/middleware/auth"
+	"github.com/lrypcy/aha_webserver/internal/middleware/jwt"
 	"github.com/lrypcy/aha_webserver/internal/model"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/lrypcy/aha_webserver/internal/response"
+	"gorm.io/gorm"
 )
 
-func AuthenticateUser(username, password string) (*model.User, error) {
-	var user model.User
-	if err := database.DB().Where("username = ?", username).First(&user).Error; err != nil {
-		return nil, err
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-		return nil, err
-	}
-	
-	return &user, nil
+// Handler 持有依赖，避免全局变量，便于测试注入内存数据库。
+type Handler struct {
+	db     *gorm.DB
+	tokens *jwt.Manager
 }
 
-type LoginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+func NewHandler(db *gorm.DB, tokens *jwt.Manager) *Handler {
+	return &Handler{db: db, tokens: tokens}
 }
 
-func Login(c *fiber.Ctx) error {
-	var req LoginRequest
+// Routes 注册认证相关路由。guard 为 JWT 中间件。
+func (h *Handler) Routes(r fiber.Router, guard fiber.Handler) {
+	r.Post("/register", h.Register)
+	r.Post("/login", h.Login)
+	r.Get("/me", guard, h.Me)
+}
+
+// Register 用户注册
+// @Summary 注册新用户
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body dto.RegisterRequest true "注册信息"
+// @Success 201 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 409 {object} response.Body
+// @Router /register [post]
+func (h *Handler) Register(c *fiber.Ctx) error {
+	var req dto.RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid request",
-		})
+		return response.BadRequest("invalid request body")
+	}
+	if err := req.Validate(); err != nil {
+		return response.BadRequest(err.Error())
 	}
 
-	// 这里添加你的用户验证逻辑
-	user, err := AuthenticateUser(req.Username, req.Password)
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Invalid credentials",
-		})
+	username := strings.TrimSpace(req.Username)
+	email := strings.TrimSpace(req.Email)
+
+	var count int64
+	if err := h.db.Model(&model.User{}).Where("username = ?", username).Count(&count).Error; err != nil {
+		return response.Internal("database error", err)
+	}
+	if count > 0 {
+		return response.Fail(c, fiber.StatusConflict, response.CodeUserExists, "username already taken")
+	}
+	if err := h.db.Model(&model.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
+		return response.Internal("database error", err)
+	}
+	if count > 0 {
+		return response.Fail(c, fiber.StatusConflict, response.CodeEmailExists, "email already registered")
 	}
 
-	token, err := jwt.GenerateToken(user.ID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Could not generate token",
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"token": token,
-		"user":  user,
-	})
-} 
-
-// 注册请求结构体
-type RegisterRequest struct {
-	Username string `json:"username" binding:"required,min=3,max=50"`
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=8,max=50"`
-}
-
-// RegisterUser 用户注册控制器
-func RegisterUser(c *fiber.Ctx) error {
-	var req RegisterRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "无效的请求参数",
-		})
-	}
-
-	// 检查用户名是否已存在
-	if exists := checkUserExists("username", req.Username); exists {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-			"error": "用户名已被使用",
-		})
-	}
-
-	// 检查邮箱是否已存在
-	if exists := checkUserExists("email", req.Email); exists {
-		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-			"error": "邮箱已被注册",
-		})
-	}
-
-	// 创建新用户
-	newUser := model.User{
-		Username: req.Username,
-		Email:    req.Email,
-		Password: req.Password, // BeforeCreate 钩子会自动加密
+	user := model.User{
+		Username: username,
+		Email:    email,
+		Password: req.Password, // BeforeCreate 钩子负责 bcrypt 哈希
+		Role:     model.RoleUser,
 		IsActive: true,
 	}
+	if err := h.db.Create(&user).Error; err != nil {
+		return response.Internal("create user failed", err)
+	}
+	return response.Created(c, user.Info())
+}
 
-	if err := database.DB().Create(&newUser).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "注册失败，请稍后重试",
-		})
+// Login 用户登录并签发 JWT
+// @Summary 登录并获取令牌
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param body body dto.LoginRequest true "登录信息"
+// @Success 200 {object} response.Body
+// @Failure 400 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Router /login [post]
+func (h *Handler) Login(c *fiber.Ctx) error {
+	var req dto.LoginRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.BadRequest("invalid request body")
+	}
+	if err := req.Validate(); err != nil {
+		return response.BadRequest(err.Error())
 	}
 
-	// 返回创建成功的用户信息（排除敏感字段）
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": "注册成功",
-		"user":    newUser.GetUserInfo(),
+	var user model.User
+	if err := h.db.Where("username = ?", strings.TrimSpace(req.Username)).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return response.Fail(c, fiber.StatusUnauthorized, response.CodeInvalidCredentials, "invalid credentials")
+		}
+		return response.Internal("database error", err)
+	}
+	if !user.IsActive {
+		return response.Fail(c, fiber.StatusForbidden, response.CodeForbidden, "account is disabled")
+	}
+	if !user.VerifyPassword(req.Password) {
+		return response.Fail(c, fiber.StatusUnauthorized, response.CodeInvalidCredentials, "invalid credentials")
+	}
+
+	now := time.Now()
+	if err := h.db.Model(&user).Update("last_login", now).Error; err != nil {
+		// 最近登录时间属于可降级信息，不影响登录主流程。
+		slog.Warn("update last_login failed", "error", err, "user_id", user.ID)
+	}
+	user.MarkLogin(now)
+
+	token, err := h.tokens.Generate(user.ID, user.Username, user.Role)
+	if err != nil {
+		return response.Internal("could not issue token", err)
+	}
+	return response.OK(c, fiber.Map{
+		"token":      token,
+		"token_type": "Bearer",
+		"expires_in": int(h.tokens.Expiration().Seconds()),
+		"user":       user.Info(),
 	})
 }
 
-// 检查用户字段是否已存在
-func checkUserExists(field string, value string) bool {
-	var count int64
-	database.DB().Model(&model.User{}).Where(field+" = ?", value).Count(&count)
-	return count > 0
-}
-
-func InitRouting(app *fiber.App) {
-	app.Post("/login", Login)
-	app.Post("/register", RegisterUser)
+// Me 返回当前登录用户
+// @Summary 获取当前用户
+// @Tags auth
+// @Produce json
+// @Security BearerAuth
+// @Success 200 {object} response.Body
+// @Failure 401 {object} response.Body
+// @Router /me [get]
+func (h *Handler) Me(c *fiber.Ctx) error {
+	var user model.User
+	if err := h.db.First(&user, authmw.UserID(c)).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return response.NotFound("user not found")
+		}
+		return response.Internal("database error", err)
+	}
+	return response.OK(c, user.Info())
 }

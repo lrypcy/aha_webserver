@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 2,
+  "name": "aha_webserver",
+  "description": "Go/Fiber Job→Task 任务管理 HTTP 服务的 AI 协作规范与 easy_deploy 部署契约。",
+  "language": "zh-CN",
+  "entry": "AGENTS.md",
+  "aliases": ["CLAUDE.md", ".github/copilot-instructions.md", ".cursor/rules/aha-webserver.mdc"],
+  "aliasNote": "macOS 大小写不敏感，agents.md 与 AGENTS.md 是同一路径，故不建立小写别名文件。",
+  "stack": {
+    "language": "Go 1.23.5",
+    "module": "github.com/lrypcy/aha_webserver",
+    "web": "Fiber v2",
+    "orm": "GORM (sqlite|mysql|postgresql)",
+    "config": "Viper, env prefix AHA_",
+    "auth": "JWT HS256 (user|admin)",
+    "docs": "swaggo"
+  },
+  "commands": {
+    "fmt": "make fmt",
+    "lint": "make lint",
+    "test": "make test",
+    "build": "make build",
+    "run": "make run",
+    "swag": "make swag",
+    "dockerUp": "make docker-up",
+    "dockerDown": "make docker-down",
+    "deployValidate": "easy_deploy validate --json",
+    "deployDoctor": "easy_deploy doctor --target <target> --json",
+    "deployPlan": "easy_deploy plan --target <target> --json",
+    "deployUp": "easy_deploy up --target <target> --yes --json",
+    "deployStatus": "easy_deploy status --json",
+    "deployLogs": "easy_deploy logs --tail 100 --json",
+    "deployDown": "easy_deploy down --target <target> --yes --json",
+    "deployRender": "easy_deploy render --target k8s --out deploy/k8s"
+  },
+  "deploy": {
+    "tool": "easy_deploy",
+    "manifest": "deploy.yaml",
+    "apiVersion": "easydeploy/v1",
+    "kind": "Service",
+    "service": "aha-webserver",
+    "targets": ["local", "systemd", "ssh", "docker", "compose", "k8s"],
+    "port": 8080,
+    "hostPort": 8080,
+    "healthPath": "/health",
+    "readinessPath": "/ready",
+    "image": "aha_webserver:latest",
+    "dockerfile": "build/package/Dockerfile",
+    "bareBuild": "go build -o bin/aha_webserver .",
+    "bareStart": "./bin/aha_webserver",
+    "stateDir": ".easy_deploy",
+    "k8sSnapshot": "deploy/k8s",
+    "humanDoc": "docs/deployment.md",
+    "envKeyNames": ["AHA_SERVER_PORT", "AHA_SERVER_ENV", "AHA_DB_TYPE", "AHA_DB_NAME", "AHA_DB_PASSWORD", "AHA_JWT_SECRET", "AHA_JWT_EXPIRATION", "AHA_LOG_LEVEL", "AHA_CORS_ORIGINS", "AHA_RATE_LIMIT_MAX", "AHA_CONFIG"],
+    "secretKeyNames": ["AHA_JWT_SECRET", "AHA_DB_PASSWORD"],
+    "exitCodes": {"2": "SPEC_INVALID", "3": "PRECONDITION_MISSING", "4": "STEP_FAILED", "5": "HEALTH_FAILED", "6": "STATE_CONFLICT", "7": "CONFIRMATION_REQUIRED"}
+  },
+  "apiContract": {
+    "basePath": "/api/v1",
+    "response": {"code": 0, "message": "ok", "data": "...", "request_id": "..."},
+    "unversionedProbes": ["/health", "/ready", "/swagger/*"]
+  },
+  "paths": {
+    "knowledgeBase": ".agents",
+    "config": "configs/config.yml",
+    "configTemplate": "configs/config.example.yml",
+    "envTemplate": ".env.example",
+    "swagger": "api",
+    "dockerCompose": "docker-compose.yml",
+    "docs": "docs"
+  },
+  "rules": [
+    ".agents/rules/go-style.md",
+    ".agents/rules/api-contract.md",
+    ".agents/rules/security.md",
+    ".agents/rules/testing.md",
+    ".agents/rules/deployment.md"
+  ],
+  "skills": [
+    ".agents/skills/add-endpoint/SKILL.md",
+    ".agents/skills/add-model-migration/SKILL.md",
+    ".agents/skills/run-and-verify/SKILL.md",
+    ".agents/skills/swagger-update/SKILL.md",
+    ".agents/skills/debug-build-failure/SKILL.md",
+    ".agents/skills/deploy/SKILL.md"
+  ],
+  "workflows": [
+    ".agents/workflows/feature-implementation.md",
+    ".agents/workflows/bugfix.md",
+    ".agents/workflows/code-review.md",
+    ".agents/workflows/deployment.md"
+  ],
+  "context": [
+    ".agents/context/architecture.md",
+    ".agents/context/glossary.md",
+    ".agents/context/deployment.md"
+  ],
+  "constraints": [
+    "统一响应体与 /api/v1 前缀是硬契约，不得生成临时响应结构。",
+    "DTO 与 GORM Model 分离，controller 不直接拼 SQL 或返回模型。",
+    "配置优先级 AHA_* 环境变量 > configs/config.yml > 内置默认值。",
+    "密钥/口令不落盘到仓库；生产强制 AHA_JWT_SECRET、显式 CORS 白名单、DB 口令。",
+    "/health 与 /ready 挂在根路径，是 Docker/compose/k8s 探针唯一来源。",
+    "api/ 是 swag 生成物，docs.go 被 main.go 导入，更新用 make swag。",
+    "最小改动、改前读现状、不打印密钥、验证后汇报证据。",
+    "端口或健康路径变更必须同步 deploy.yaml / Dockerfile / docker-compose.yml / docs/deployment.md / deploy/k8s。",
+    "生产密钥只能经环境变量注入，清单只写 ${VAR}；render 出的 Secret 不入库。",
+    "环境不具备时不得硬上：用 doctor 判定，改目标或只 render，并明确标注未实际部署。"
+  ],
+  "knownIssues": [
+    "go test ./... 有 2 个既有失败用例（TestAdminCanDeleteJob、TestSwaggerDocumentIsServed），本轮不擅自修复。",
+    "easy_deploy v1 不自动回滚、不推镜像仓库、不打包 Helm chart。",
+    "本机 Docker daemon 24.0.6 / compose v2.21 已启动，doctor --target docker|compose 通过；Docker Hub 鉴权不通已用 build.args 声明式换国内源适配。",
+    "宿主数据卷曾写满导致 Docker VM 的 /var/lib/docker 被重挂只读；仅腾磁盘不够，经用户授权重启 Docker Desktop 后恢复可写。重启期间 2 个 unless-stopped 用户容器损坏的 config.v2.json 已用 .tmp-config.v2.json* 备份原位修复并按原始 ID 恢复，现均 healthy。",
+    "local / docker / compose / k8s 四个目标均已实际部署并验证（up --yes --json ok、health=ok、/health 与 /ready 200）；当前两应用同时在 compose（宿主 8080/3000）与 k8s（namespace aha）上运行。",
+    "compose 项目隔离：生成的 compose.yaml 带 name: edp-<stack>，命令显式 -p edp-<stack>；本项目 edp-aha-webserver，前端 edp-aha-react，down 互不干扰。",
+    "minikube 已启动（节点 Ready，旧 profile 的 kubelet 客户端证书过期已用节点内 CA 重签修复，未执行 minikube delete），doctor --target k8s 通过；k8s 目标已实际部署验证（namespace aha、Deployment 2/2 Ready、NodePort、/health 与 /ready 200）。k8s Driver 不构建镜像，部署前需 minikube image load 把镜像送进节点，否则 ImagePullBackOff。",
+    "state 按 <target>/<service> 分键，k8s 与 compose 部署记录互不覆盖，也无需为部署 k8s 先 down compose；k8s 用 NodePort 不占宿主 8080/3000。切换到 local/docker/compose 前仍需 down 旧目标释放端口。",
+    "systemd（无 systemctl）、ssh（远端不可达）仍返回 PRECONDITION_MISSING，只能做 plan + render。"
+  ],
+  "environmentNotes": [
+    "agent shell 设置 NODE_OPTIONS=--require .../node-language-shim.cjs；启动 easy_deploy 时用 env -u NODE_OPTIONS 避免污染子进程环境。",
+    "agent shell 设置 HTTP_PROXY/HTTPS_PROXY，curl 访问 127.0.0.1 需加 --noproxy '*'；Go http.Client 对 loopback 自动绕过代理。",
+    "easy_deploy 的 exec_background 用 Setsid 脱离会话，down 按进程组回收；服务在 CLI 退出后仍存活。"
+  ]
+}

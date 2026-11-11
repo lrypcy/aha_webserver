@@ -1,0 +1,35 @@
+# 版本控制 / IDE / CI（构建上下文无需携带）
+.git
+.gitignore
+.github
+.vscode
+.idea
+
+# 本地构建产物与临时文件
+bin/
+dist/
+coverage.out
+*.out
+*.test
+*.tmp
+*.bak
+*~
+*.swp
+
+# SQLite 数据文件不要打进镜像
+*.db
+*.db-journal
+
+# 含真实密钥的本地文件：运行时用环境变量注入，不打进镜像
+.env
+.env.*
+configs/config.local.yml
+
+# 文档 / 脚本 / 其他与编译无关的资源
+docs/
+scripts/
+assets/
+tools/
+*.md
+
+# 注意：不要排除 go.mod、go.sum、main.go、internal/、api/、configs/、build/package/Dockerfile，它们是构建所需。

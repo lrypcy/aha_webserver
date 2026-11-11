@@ -1,0 +1,49 @@
+# 配置模板：复制为 configs/config.local.yml 后按需修改，或用 AHA_* 环境变量覆盖。
+# 优先级：AHA_* 环境变量 > 配置文件 > 内置默认值。
+server:
+  port: 8080
+  env: dev                      # dev | production
+  read_timeout: 10s
+  write_timeout: 10s
+  shutdown_timeout: 10s
+  body_limit: 1048576           # 1 MiB
+
+database:
+  # --- SQLite（零配置，适合本地开发） ---
+  type: sqlite
+  dbname: aha.db
+
+  # --- PostgreSQL ---
+  # type: postgresql
+  # host: localhost
+  # port: 5432
+  # username: postgres
+  # dbname: aha
+  # password: ""                # 用 AHA_DB_PASSWORD 注入
+
+  # --- MySQL ---
+  # type: mysql
+  # host: localhost
+  # port: 3306
+  # username: root
+  # dbname: aha
+  # password: ""                # 用 AHA_DB_PASSWORD 注入
+
+  max_open_conns: 20
+  max_idle_conns: 5
+  conn_max_lifetime: 30m
+
+jwt:
+  secret: ""                    # openssl rand -hex 32，生产必填
+  expiration: 24h
+  issuer: aha_webserver
+
+log:
+  level: info                   # debug | info | warn | error
+
+cors:
+  origins: "*"                  # 生产必须显式列出，如 https://example.com
+
+rate_limit:
+  max: 100                      # 每个 IP 每窗口最大请求数
+  expiration: 1m

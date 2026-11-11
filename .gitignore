@@ -23,4 +23,29 @@ go.work.sum
 
 # env file
 .env
+
+# 注意：.vscode/ 目录已提交入库（含 tasks.json、launch.json、settings.json），
+# 下面这行仅对后续新增的 .vscode 文件生效，已跟踪文件不受影响。
 .vscode
+
+# ---- aha_webserver 工程化补充 ----
+# 本地构建产物
+bin/
+dist/
+
+# 覆盖率报告（上面的 *.out 已覆盖，这里显式声明便于阅读）
+coverage.out
+
+# SQLite 数据库文件及其回滚日志（本地运行会生成）
+*.db
+*.db-journal
+
+# 本地私有配置：可能含真实密钥，请勿提交
+configs/config.local.yml
+
+# 本地环境变量文件：含真实密钥，请勿提交；示例见 .env.example
+.env
+
+# ---- easy_deploy 运行态：state / pid / log / 生成的 env-file 与 Secret ----
+.easy_deploy/
+deploy/k8s/*-secret.yaml
